@@ -17,7 +17,7 @@ Production-grade security
 
 Stack ini reusable untuk banyak environment (DEV, STAGING, PROD).
 
-🏗 Arsitektur Utama
+##🏗 Arsitektur Utama
 Application (FE / BE)
         │
         ▼
