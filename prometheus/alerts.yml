@@ -1,0 +1,11 @@
+groups:
+  - name: systemd-alerts
+    rules:
+      - alert: SystemdServiceDown
+        expr: node_systemd_unit_state{state="active",name=~".*\\.service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.name }} is DOWN"
+          description: "Instance {{ $labels.instance }} service {{ $labels.name }} is not active."

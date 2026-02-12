@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   grafana:
     image: "${GRAFANA_IMAGE}"
@@ -61,6 +63,13 @@ services:
     container_name: node-exporter
     pid: host
     restart: unless-stopped
+    volumes:
+      - /:/host:ro,rslave
+      - /run/systemd/private:/run/systemd/private:ro
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.systemd'
 
 volumes:
   grafana_data:

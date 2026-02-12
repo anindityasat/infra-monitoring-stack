@@ -6,6 +6,12 @@ server:
 common:
   path_prefix: /loki
   replication_factor: 1
+  ring:
+    kvstore:
+      store: memberlist
+
+memberlist:
+  join_members: []
 
 schema_config:
   configs:
@@ -26,4 +32,3 @@ limits_config:
 
 compactor:
   working_directory: /loki/compactor
-  shared_store: filesystem

@@ -1,0 +1,41 @@
+{
+  "title": "Mac Services Monitoring",
+  "schemaVersion": 38,
+  "version": 1,
+  "editable": false,
+  "panels": [
+    {
+      "type": "graph",
+      "title": "CPU Usage",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)", "refId": "A" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Memory Usage",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "(node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / 1024 / 1024", "refId": "B" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Disk Usage",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "100 - (node_filesystem_free_bytes / node_filesystem_size_bytes * 100)", "refId": "C" }
+      ]
+    },
+    {
+      "type": "graph",
+      "title": "Network Traffic",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "rate(node_network_receive_bytes_total[5m])", "refId": "D", "legendFormat": "rx" },
+        { "expr": "rate(node_network_transmit_bytes_total[5m])", "refId": "E", "legendFormat": "tx" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "title": "Systemd Services - Advanced",
+  "schemaVersion": 38,
+  "version": 2,
+  "editable": false,
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": "Prometheus",
+        "refresh": 1,
+        "query": "label_values(node_systemd_unit_state{name=~\".*\\.service\"}, instance)"
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Active Services",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "count(node_systemd_unit_state{state=\"active\",name=~\".*\\.service\",instance=\"$instance\"} == 1)", "refId": "A" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Total Failed Services",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "count(node_systemd_unit_state{state=\"failed\",name=~\".*\\.service\",instance=\"$instance\"} == 1)", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [ { "value": 0, "color": "green" }, { "value": 1, "color": "red" } ] } } }
+    },
+    {
+      "type": "stat",
+      "title": "Service Uptime % (24h)",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "avg_over_time(node_systemd_unit_state{state=\"active\",name=~\".*\\.service\",instance=\"$instance\"}[24h]) * 100", "refId": "C" }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "All Services Status Grid",
+      "datasource": "Prometheus",
+      "targets": [
+        { "expr": "node_systemd_unit_state{state=\"active\",name=~\".*\\.service\",instance=\"$instance\"}", "refId": "D" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [ { "options": { "0": { "text": "DOWN" }, "1": { "text": "UP" } }, "type": "value" } ],
+          "thresholds": { "mode": "absolute", "steps": [ { "value": 0, "color": "red" }, { "value": 1, "color": "green" } ] }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "values": false }, "orientation": "horizontal" }
+    }
+  ]
+}
