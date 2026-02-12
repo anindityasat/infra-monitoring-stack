@@ -1,4 +1,4 @@
-VERSION ?= 1.7.0
+VERSION ?= 1.10.2
 BIN_DIR ?= /usr/local/bin
 SERVICE_FILE ?= /etc/systemd/system/node-exporter.service
 
