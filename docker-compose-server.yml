@@ -4,6 +4,7 @@ services:
   grafana:
     image: "${GRAFANA_IMAGE}"
     container_name: grafana
+    network_mode: "host" 
     ports:
       - "${PORT_GRAFANA}:3000"
     env_file:
@@ -19,6 +20,7 @@ services:
 
   prometheus:
     image: "${PROMETHEUS_IMAGE}"
+    network_mode: "host" 
     container_name: prometheus
     env_file:
       - .env
@@ -34,6 +36,7 @@ services:
 
   loki:
     image: "${LOKI_IMAGE}"
+    network_mode: "host" 
     container_name: loki
     env_file:
       - .env
@@ -47,6 +50,7 @@ services:
 
   otel-collector:
     image: "${OTEL_IMAGE}"
+    network_mode: "host" 
     container_name: otel-collector
     env_file:
       - .env
