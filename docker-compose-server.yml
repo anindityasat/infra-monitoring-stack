@@ -56,25 +56,7 @@ services:
     volumes:
       - ./otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     command: ["--config=/etc/otel-collector-config.yaml"]
-    restart: unless-stopped
-
-node-exporter:
-  image: quay.io/prometheus/node-exporter:latest
-  container_name: node-exporter
-  restart: unless-stopped
-  user: root
-  pid: "host"
-  network_mode: "host"
-  volumes:
-    - /proc:/host/proc:ro
-    - /sys:/host/sys:ro
-    - /:/rootfs:ro
-    - /var/run/dbus:/var/run/dbus:ro    # akses DBus
-  command:
-    - '--path.procfs=/host/proc'
-    - '--path.sysfs=/host/sys'
-    - '--path.rootfs=/rootfs'
-    - '--collector.systemd'             # aktifkan systemd collector
+    restart: unless-stopped             # aktifkan systemd collector
 
 volumes:
   grafana_data:
