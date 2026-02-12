@@ -18,7 +18,7 @@ install:
 	sudo /bin/bash -c "echo '' >> $(SERVICE_FILE)"
 	sudo /bin/bash -c "echo '[Service]' >> $(SERVICE_FILE)"
 	sudo /bin/bash -c "echo 'User=node_exporter' >> $(SERVICE_FILE)"
-	sudo /bin/bash -c "echo 'ExecStart=$(BIN_DIR)/node_exporter --collector.systemd' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo 'ExecStart=$(BIN_DIR)/node_exporter --collector.systemd --web.listen-address=127.0.0.1:9100 --web.external-labels nodename=%H' >> $(SERVICE_FILE)"
 	sudo /bin/bash -c "echo 'Restart=always' >> $(SERVICE_FILE)"
 	sudo /bin/bash -c "echo '' >> $(SERVICE_FILE)"
 	sudo /bin/bash -c "echo '[Install]' >> $(SERVICE_FILE)"
