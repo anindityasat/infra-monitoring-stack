@@ -58,18 +58,23 @@ services:
     command: ["--config=/etc/otel-collector-config.yaml"]
     restart: unless-stopped
 
-  node-exporter:
-    image: "${NODE_EXPORTER_IMAGE}"
-    container_name: node-exporter
-    pid: host
-    restart: unless-stopped
-    volumes:
-      - /:/host:ro,rslave
-      - /run/systemd/private:/run/systemd/private:ro
-      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket:ro
-    command:
-      - '--path.rootfs=/host'
-      - '--collector.systemd'
+node-exporter:
+  image: quay.io/prometheus/node-exporter:latest
+  container_name: node-exporter
+  restart: unless-stopped
+  user: root
+  pid: "host"
+  network_mode: "host"
+  volumes:
+    - /proc:/host/proc:ro
+    - /sys:/host/sys:ro
+    - /:/rootfs:ro
+    - /var/run/dbus:/var/run/dbus:ro    # akses DBus
+  command:
+    - '--path.procfs=/host/proc'
+    - '--path.sysfs=/host/sys'
+    - '--path.rootfs=/rootfs'
+    - '--collector.systemd'             # aktifkan systemd collector
 
 volumes:
   grafana_data:
