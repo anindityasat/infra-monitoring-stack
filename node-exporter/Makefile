@@ -1,4 +1,3 @@
-# Node Exporter version
 VERSION ?= 1.7.0
 BIN_DIR ?= /usr/local/bin
 SERVICE_FILE ?= /etc/systemd/system/node-exporter.service
@@ -13,19 +12,17 @@ install:
 	sudo useradd -rs /bin/false node_exporter || true
 
 	@echo "Creating systemd service..."
-	sudo tee $(SERVICE_FILE) > /dev/null <<EOF
-[Unit]
-Description=Node Exporter
-After=network.target
-
-[Service]
-User=node_exporter
-ExecStart=$(BIN_DIR)/node_exporter --collector.systemd
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
+	sudo /bin/bash -c "echo '[Unit]' > $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo 'Description=Node Exporter' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo 'After=network.target' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo '' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo '[Service]' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo 'User=node_exporter' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo 'ExecStart=$(BIN_DIR)/node_exporter --collector.systemd' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo 'Restart=always' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo '' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo '[Install]' >> $(SERVICE_FILE)"
+	sudo /bin/bash -c "echo 'WantedBy=multi-user.target' >> $(SERVICE_FILE)"
 
 	sudo systemctl daemon-reload
 	sudo systemctl enable node-exporter
