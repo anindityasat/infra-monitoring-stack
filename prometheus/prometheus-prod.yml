@@ -1,0 +1,83 @@
+# Prometheus Configuration - Production
+# Reference: https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+# This config is optimized for:
+# - Long-term metrics storage (90 days)
+# - Resource efficiency
+# - High-level VPS metrics only (no pod-level or low-cardinality details)
+
+global:
+  scrape_interval: 1m                  # Production: 1 min (vs dev 30s) to reduce cardinality
+  scrape_timeout: 30s
+  evaluation_interval: 1m              # Alert evaluation every minute
+  external_labels:
+    cluster: 'production'
+    environment: 'prod'
+    monitor: 'central-observability'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+      # Optional: Configure alert manager later
+
+# Load alert rules from dedicated file
+rule_files:
+  - /etc/prometheus/rules.yml
+
+# Scrape configurations - Only HIGH-LEVEL metrics
+scrape_configs:
+  # === Infrastructure Health Checks ===
+  
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    scrape_interval: 2m
+    static_configs:
+      - targets: ['localhost:9090']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # OpenTelemetry Collector - Central gateway health
+  - job_name: 'otel-collector'
+    scrape_interval: 1m
+    static_configs:
+      - targets: ['otel-collector:8888']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+      - source_labels: [__scheme__]
+        target_label: scheme
+    metrics_path: /metrics
+
+  # Grafana - Dashboard & alerting platform health
+  - job_name: 'grafana'
+    scrape_interval: 2m
+    static_configs:
+      - targets: ['grafana:3000']
+    metrics_path: /metrics
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # === Application Services (Optional) ===
+  # Uncomment and add your application servers here
+  # Example: Application servers exposing /metrics endpoint
+  
+  # - job_name: 'app-server-1'
+  #   scrape_interval: 1m
+  #   static_configs:
+  #     - targets: ['app1.internal:9000']
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       replacement: 'app1'
+  #       target_label: instance
+
+  # - job_name: 'app-server-2'
+  #   scrape_interval: 1m
+  #   static_configs:
+  #     - targets: ['app2.internal:9000']
+  #   relabel_configs:
+  #     - source_labels: [__address__]
+  #       replacement: 'app2'
+  #       target_label: instance

@@ -1,0 +1,289 @@
+# Production Docker Compose Configuration
+# WARNING: All ports are internal only (172.20.0.0/16 subnet)
+# Public access MUST be through reverse proxy (Nginx/Caddy) with TLS termination
+# This provides security by default and prevents direct exposure
+
+services:
+  # OpenTelemetry Collector - Central gateway for observability signals
+  # SECURITY: Only accepts connections from reverse proxy or app servers on VPC
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.102.1
+    container_name: otel-collector-prod
+    restart: always
+    # PRODUCTION: NO exposed ports - only internal Docker network
+    expose:
+      - "4317"    # OTLP gRPC receiver (internal)
+      - "4318"    # OTLP HTTP receiver (internal)
+      - "8888"    # Prometheus metrics endpoint (internal)
+      - "13133"   # Health check (internal)
+    volumes:
+      - ./otel-collector/config.yaml:/etc/otel-collector-config.yaml:ro
+      - ./certs:/etc/certs:ro
+    environment:
+      OTEL_CONFIG_PATH: /etc/otel-collector-config.yaml
+      LOG_LEVEL: info
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    networks:
+      - monitoring
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:13133" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Prometheus - Metrics storage & query engine
+  # PRODUCTION: Long retention (90d), no external port
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    container_name: prometheus-prod
+    restart: always
+    # PRODUCTION: NO exposed ports - only internal Docker network
+    expose:
+      - "9090"    # Prometheus API (internal only)
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - prometheus-storage:/prometheus
+      - ./certs:/etc/certs:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'
+      - '--storage.tsdb.retention.size=50GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--query.timeout=5m'
+    networks:
+      - monitoring
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9090/-/healthy" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '2'
+          memory: 2G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Loki - Log storage & query engine
+  # PRODUCTION: Long retention (30d), persistent WAL
+  loki:
+    image: grafana/loki:2.9.7
+    container_name: loki-prod
+    restart: always
+    # PRODUCTION: NO exposed ports - only internal Docker network
+    expose:
+      - "3100"    # Loki API (internal only)
+    volumes:
+      - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-storage:/loki
+      - loki-wal:/loki/wal
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3100/ready" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Tempo - Distributed tracing backend
+  # PRODUCTION: Persistent storage, 14d retention
+  tempo:
+    image: grafana/tempo:2.3.1
+    container_name: tempo-prod
+    restart: always
+    # PRODUCTION: NO exposed ports - only internal Docker network
+    expose:
+      - "3200"    # Tempo API (internal)
+      - "14250"   # Jaeger receiver gRPC (internal)
+      - "14268"   # Jaeger receiver HTTP (internal)
+      - "9411"    # Zipkin receiver (internal)
+    volumes:
+      - ./tempo/tempo-config.yaml:/etc/tempo.yaml:ro
+      - tempo-storage:/var/tempo
+    command:
+      - -config.file=/etc/tempo.yaml
+    networks:
+      - monitoring
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3200/status/build" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Grafana - Visualization & alerting platform
+  # SECURITY: 
+  # - Anonymous access disabled
+  # - Admin credentials from environment
+  # - HTTPS/cookie security enabled
+  # - NO direct port exposure - must use reverse proxy with TLS termination
+  grafana:
+    image: grafana/grafana:11.0.1
+    container_name: grafana-prod
+    restart: always
+    # PRODUCTION: NO exposed port - must use reverse proxy (Nginx/Caddy) with TLS
+    expose:
+      - "3000"    # Grafana API (internal only - REVERSE PROXY REQUIRED)
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./dashboards:/var/lib/grafana/dashboards
+    environment:
+      # SECURITY: Credentials must be set via environment, not hardcoded
+      GF_SECURITY_ADMIN_USER: ${GF_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD:-ChangeMe123!@#}
+      # SECURITY: Disable anonymous access in production
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_SECURITY_DISABLE_BRUTE_FORCE_LOGIN_PROTECTION: 'false'
+      # Domain configuration - must match reverse proxy
+      GF_SERVER_DOMAIN: ${GF_DOMAIN:-monitoring.example.com}
+      GF_SERVER_ROOT_URL: ${GF_ROOT_URL:-https://monitoring.example.com}
+      # SECURITY: HTTPS-only cookies when behind reverse proxy with X-Forwarded-Proto
+      GF_SECURITY_COOKIE_SECURE: 'true'
+      GF_SECURITY_COOKIE_HTTPONLY: 'true'
+      GF_SECURITY_COOKIE_SAMESITE: 'Strict'
+      GF_SERVER_PROTOCOL: http  # Only HTTP locally, reverse proxy handles HTTPS
+      # Logging
+      GF_LOG_LEVEL: info
+      # Optional: SMTP for alerts
+      GF_SMTP_ENABLED: ${GF_SMTP_ENABLED:-false}
+      GF_SMTP_HOST: ${GF_SMTP_HOST:-smtp.example.com}
+      GF_SMTP_PORT: ${GF_SMTP_PORT:-587}
+      GF_SMTP_USER: ${GF_SMTP_USER:-}
+      GF_SMTP_PASSWORD: ${GF_SMTP_PASSWORD:-}
+      GF_SMTP_FROM_ADDRESS: ${GF_SMTP_FROM:-monitoring@example.com}
+    networks:
+      - monitoring
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+      tempo:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3000/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+networks:
+  monitoring:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  # PRODUCTION: All volumes use local driver with persistent storage
+  # Ensure these directories exist and have proper permissions:
+  # sudo mkdir -p /var/lib/monitoring/{prometheus,loki,tempo,grafana}
+  # sudo chown 65534:65534 /var/lib/monitoring/prometheus (Prometheus runs as nobody)
+  # sudo chown 472:472 /var/lib/monitoring/grafana (Grafana user ID)
+  # sudo chown 10001:10001 /var/lib/monitoring/loki /var/lib/monitoring/tempo
+  prometheus-storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PROMETHEUS_STORAGE_PATH:-/var/lib/monitoring/prometheus}
+  loki-storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LOKI_STORAGE_PATH:-/var/lib/monitoring/loki}
+  loki-wal:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LOKI_WAL_PATH:-/var/lib/monitoring/loki-wal}
+  tempo-storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${TEMPO_STORAGE_PATH:-/var/lib/monitoring/tempo}
+  grafana-storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${GRAFANA_STORAGE_PATH:-/var/lib/monitoring/grafana}

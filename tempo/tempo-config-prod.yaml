@@ -1,0 +1,65 @@
+# Tempo Configuration - Production (v2.3.1)
+# Optimized for:
+# - 14 day retention
+# - Local persistent storage
+# - Efficient trace sampling
+# - Distributed tracing support
+
+server:
+  http_listen_port: 3200
+  log_level: info
+  grpc_server_max_recv_msg_size: 4194304  # 4MB
+  grpc_server_max_send_msg_size: 4194304
+
+# Distributor configuration - receives traces
+distributor:
+  ring:
+    kvstore:
+      store: inmemory
+
+# Ingester configuration - buffers traces in memory before flushing to storage
+ingester:
+  max_block_duration: 5m              # Flush blocks every 5 minutes
+  trace_idle_period: 10m              # Idle trace duration
+  max_traces: 10000                   # Max in-flight traces
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+
+# Compactor - merges trace blocks
+compactor:
+  compaction:
+    compacted_block_retention: 7d     # Keep compacted blocks for 7 days
+    block_retention: 14d              # Overall 14 day retention
+    compaction_cycle: 30s
+    max_block_bytes: 107374182400     # 100GB max block size
+
+# Storage configuration
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal
+      checkpoint_duration: 5m
+      flush_on_shutdown: true
+
+# Query frontend - handles trace queries
+query_frontend:
+  max_cache_freshness_percent: 10
+  compress_responses: true
+  cache_control_header: "public, max-age=300"
+
+# Querier - fetches traces from storage
+querier:
+  max_concurrent_queries: 20
+  search:
+    query_timeout: 30s
+    max_result_limit: 20
+
+# Optional: Metrics generator (disabled for minimal overhead)
+# metrics_generator:
+#   enabled: false

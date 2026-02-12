@@ -1,0 +1,120 @@
+# OpenTelemetry Collector Configuration - Production
+# Role: Central gateway for all observability signals
+# Receives: Metrics, Logs, Traces from applications
+# Exports: Prometheus (metrics), Loki (logs), Tempo (traces)
+# Features:
+# - Batch processing for efficiency
+# - Memory limiting for stability
+# - Health checks
+# - TLS support (optional, configure with mounted certs)
+
+receivers:
+  # OTLP receiver - OpenTelemetry Protocol
+  # Applications send telemetry here
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+        max_recv_msg_size_mib: 4
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Batch processor - collect signals before export
+  # Reduces load on backends
+  batch:
+    timeout: 10s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Memory limiter - prevent OOM
+  # Production: 1GB limit with 250MB spike
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 1024
+    spike_limit_mib: 256
+
+  # Optional: Sampling (reduce high-volume traces)
+  # probabilistic_sampler:
+  #   sampling_percentage: 10
+
+  # Optional: Attribute processor for enrichment
+  # attributes:
+  #   actions:
+  #     - key: environment
+  #       value: production
+  #       action: insert
+
+exporters:
+  # Logging exporter - debug/troubleshooting
+  logging:
+    loglevel: info
+
+  # Prometheus exporter - export metrics
+  prometheusremotewrite:
+    endpoint: http://prometheus:9090/api/v1/write
+    tls:
+      insecure: true
+    # Optional: Add headers for authentication
+    # headers:
+    #   Authorization: "Bearer ${PROMETHEUS_TOKEN}"
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # OTLP exporter - send traces to Tempo
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # Loki exporter - send logs
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    tls:
+      insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+service:
+  pipelines:
+    # Metrics pipeline: otlp -> batch -> prometheus
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheusremotewrite, logging]
+
+    # Traces pipeline: otlp -> batch -> tempo
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp, logging]
+
+    # Logs pipeline: otlp -> batch -> loki
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [loki, logging]
+
+extensions:
+  # Health check endpoint for monitoring
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # Optional: Performance profiling
+  # pprof:
+  #   endpoint: 0.0.0.0:1777
+
+  # Optional: Metrics about OTel Collector itself
+  # zpages:
+  #   endpoint: 0.0.0.0:55679
