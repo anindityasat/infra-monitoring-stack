@@ -11,21 +11,19 @@ install:
 	sudo chmod +x $(BIN_DIR)/node_exporter
 	sudo useradd -rs /bin/false node_exporter || true
 
-	sudo tee $(SERVICE_FILE) > /dev/null <<EOF
-[Unit]
-Description=Node Exporter
-After=network.target
-
-[Service]
-User=node_exporter
-Group=node_exporter
-Type=simple
-ExecStart=$(BIN_DIR)/node_exporter --collector.systemd --web.listen-address=127.0.0.1:9100
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
+	sudo bash -c "echo '[Unit]' > $(SERVICE_FILE)"
+	sudo bash -c "echo 'Description=Node Exporter' >> $(SERVICE_FILE)"
+	sudo bash -c "echo 'After=network.target' >> $(SERVICE_FILE)"
+	sudo bash -c "echo '' >> $(SERVICE_FILE)"
+	sudo bash -c "echo '[Service]' >> $(SERVICE_FILE)"
+	sudo bash -c "echo 'User=node_exporter' >> $(SERVICE_FILE)"
+	sudo bash -c "echo 'Group=node_exporter' >> $(SERVICE_FILE)"
+	sudo bash -c "echo 'Type=simple' >> $(SERVICE_FILE)"
+	sudo bash -c "echo 'ExecStart=$(BIN_DIR)/node_exporter --collector.systemd --web.listen-address=127.0.0.1:9100' >> $(SERVICE_FILE)"
+	sudo bash -c "echo 'Restart=always' >> $(SERVICE_FILE)"
+	sudo bash -c "echo '' >> $(SERVICE_FILE)"
+	sudo bash -c "echo '[Install]' >> $(SERVICE_FILE)"
+	sudo bash -c "echo 'WantedBy=multi-user.target' >> $(SERVICE_FILE)"
 
 	sudo systemctl daemon-reload
 	sudo systemctl enable node-exporter
