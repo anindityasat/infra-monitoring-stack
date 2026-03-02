@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  grafana:
+    image: "${GRAFANA_IMAGE}"
+    container_name: grafana
+    network_mode: "host" 
+    ports:
+      - "${PORT_GRAFANA}:${PORT_GRAFANA}"
+    env_file:
+      - .env
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GF_SECURITY_ADMIN_PASSWORD:-admin}"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      # - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards
+    restart: unless-stopped
+
+  prometheus:
+    image: "${PROMETHEUS_IMAGE}"
+    network_mode: "host" 
+    container_name: prometheus
+    env_file:
+      - .env
+    ports:
+      - "${PORT_PROMETHEUS}:${PORT_PROMETHEUS}"
+    volumes:
+      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - "--storage.tsdb.retention.time=${PROMETHEUS_RETENTION}"
+    restart: unless-stopped
+
+  loki:
+    image: "${LOKI_IMAGE}"
+    network_mode: "host" 
+    container_name: loki
+    env_file:
+      - .env
+    ports:
+      - "${PORT_LOKI}:${PORT_LOKI}"
+    volumes:
+      - loki_data:/loki
+      - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+
+  otel-collector:
+    image: "${OTEL_IMAGE}"
+    network_mode: "host" 
+    container_name: otel-collector
+    env_file:
+      - .env
+    ports:
+      - "${PORT_OTEL_GRPC}:${PORT_OTEL_GRPC}"
+      - "${PORT_OTEL_HTTP}:${PORT_OTEL_HTTP}"
+    volumes:
+      - ./otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    restart: unless-stopped             # aktifkan systemd collector
+
+volumes:
+  grafana_data:
+  prometheus_data:
+  loki_data:
