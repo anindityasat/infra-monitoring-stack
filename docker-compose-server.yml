@@ -6,7 +6,7 @@ services:
     container_name: grafana
     network_mode: "host" 
     ports:
-      - "${PORT_GRAFANA}:3000"
+      - "${PORT_GRAFANA}:${PORT_GRAFANA}"
     env_file:
       - .env
     environment:
@@ -25,7 +25,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${PORT_PROMETHEUS}:9090"
+      - "${PORT_PROMETHEUS}:${PORT_PROMETHEUS}"
     volumes:
       - prometheus_data:/prometheus
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -41,7 +41,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${PORT_LOKI}:3100"
+      - "${PORT_LOKI}:${PORT_LOKI}"
     volumes:
       - loki_data:/loki
       - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
@@ -55,8 +55,8 @@ services:
     env_file:
       - .env
     ports:
-      - "${PORT_OTEL_GRPC}:4317"
-      - "${PORT_OTEL_HTTP}:4318"
+      - "${PORT_OTEL_GRPC}:${PORT_OTEL_GRPC}"
+      - "${PORT_OTEL_HTTP}:${PORT_OTEL_HTTP}"
     volumes:
       - ./otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
     command: ["--config=/etc/otel-collector-config.yaml"]
