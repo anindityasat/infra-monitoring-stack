@@ -19,7 +19,7 @@ install:
 	sudo bash -c "echo 'User=node_exporter' >> $(SERVICE_FILE)"
 	sudo bash -c "echo 'Group=node_exporter' >> $(SERVICE_FILE)"
 	sudo bash -c "echo 'Type=simple' >> $(SERVICE_FILE)"
-	sudo bash -c "echo 'ExecStart=$(BIN_DIR)/node_exporter --collector.systemd --web.listen-address=127.0.0.1:49100' >> $(SERVICE_FILE)"
+	sudo bash -c "echo 'ExecStart=$(BIN_DIR)/node_exporter --collector.systemd --web.listen-address=127.0.0.1:9100' >> $(SERVICE_FILE)"
 	sudo bash -c "echo 'Restart=always' >> $(SERVICE_FILE)"
 	sudo bash -c "echo '' >> $(SERVICE_FILE)"
 	sudo bash -c "echo '[Install]' >> $(SERVICE_FILE)"
